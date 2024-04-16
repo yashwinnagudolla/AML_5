@@ -1,0 +1,52 @@
+% Load Iris dataset
+fileID = fopen('iris.data', 'r');
+data = textscan(fileID, '%f%f%f%f%s', 'Delimiter', ',', 'HeaderLines', 0);
+fclose(fileID);
+
+% Extract data matrix A and target vector target
+A = [data{1}, data{2}, data{3}, data{4}]'; % Features are in the first 4 columns
+target = data{5}; % Class labels are in the 5th column
+target = categorical(target); % Convert class labels to categorical
+
+% Set parameters
+epsilon = 0.1; % Choose an epsilon value
+beta = 0.1; % Choose a beta value
+n = size(A, 1); % Number of data points
+d = size(A, 2); % Original dimension
+
+% Calculate k_0
+k_0 = ceil((4 + 2 * beta) / ((epsilon^2 / 2) - (epsilon^3 / 3)) * log(n));
+
+% Set target dimension (k)
+k = 2; % Desired output dimension
+
+% Generate random projection matrix R
+R = randi([0, 1], d, k) * 2 - 1; % Random matrix with elements -1 or 1
+
+% Transform data matrix A using R
+E = (1 / sqrt(k)) * (A * R);
+
+% Calculate pairwise distances in original space
+D1 = squareform(pdist(A)); % Distance matrix in the original space
+
+% Calculate pairwise distances in new space
+D2 = squareform(pdist(E)); % Distance matrix in the new space
+
+% Determine scaling factors m and M
+m = 1;
+M = 1;
+for i = 1:n
+    for j = 1:n
+        if D1(i, j) ~= 0 && D2(i, j) ~= 0
+            m = min(m, D2(i, j) / D1(i, j));
+            M = max(M, D2(i, j) / D1(i, j));
+        end
+    end
+end
+
+epsilon_fit = 1 - m;
+
+fprintf('Epsilon: %.4f\n', epsilon_fit);
+fprintf('Shape of E (new space): %d x %d\n', size(E));
+fprintf('Minimum scaling factor (m): %.4f\n', m);
+fprintf('Maximum scaling factor (M): %.4f\n', M);

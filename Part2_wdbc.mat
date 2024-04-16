@@ -1,0 +1,62 @@
+% Load the wdbc dataset
+fileID = fopen('wdbc.data', 'r');
+data = textscan(fileID, '%f%s%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%f%u', 'Delimiter', ',', 'HeaderLines', 0);
+fclose(fileID);
+
+% Extract data matrix A and target vector target
+A = zeros(length(data{1}), length(data) - 2);
+target = categorical(data{2});
+
+for i = 1:length(data) - 2
+    A(:, i) = data{i+2};
+end
+
+% Implement feature reduction
+function E = feature_reduction(A)
+    d = size(A, 2);
+    R = 2 * randi([0, 1], d, 2) - 1;
+    E = (1 / sqrt(2)) * (A * R);
+end
+
+E = feature_reduction(A);
+
+% Split the data into training and testing sets
+cv = cvpartition(target, 'HoldOut', 0.2);
+idx_train = training(cv);
+idx_test = test(cv);
+X_train = E(idx_train, :);
+y_train = target(idx_train);
+X_test = E(idx_test, :);
+y_test = target(idx_test);
+
+% Implement multiclass SVM with different kernels
+kernels = {'linear', 'polynomial', 'polynomial', 'polynomial'};
+degrees = [1, 2, 3, 4];
+
+for i = 1:length(kernels)
+    kernel = kernels{i};
+    degree = degrees(i);
+    
+    % Train SVM classifier
+    classifier = fitcecoc(X_train, y_train, 'Learners', templateSVM('KernelFunction', kernel, 'PolynomialOrder', degree));
+    
+    % Predict on test set
+    y_pred = predict(classifier, X_test);
+    
+    % Calculate performance metrics
+    cm = confusionmat(y_test, y_pred);
+    acc = sum(diag(cm)) / sum(cm(:));
+    precision = diag(cm) ./ sum(cm, 2);
+    recall = diag(cm) ./ sum(cm, 1)';
+    
+    % Print results
+    fprintf('Kernel: %s, Degree: %d\n', kernel, degree);
+    fprintf('Confusion Matrix:\n');
+    disp(cm);
+    fprintf('Accuracy: %.4f\n', acc);
+    fprintf('Precision:\n');
+    disp(precision);
+    fprintf('Recall:\n');
+    disp(recall);
+    fprintf('\n');
+end

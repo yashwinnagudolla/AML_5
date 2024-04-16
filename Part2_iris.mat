@@ -1,0 +1,63 @@
+% Load Iris dataset
+fileID = fopen('iris.data', 'r');
+data = textscan(fileID, '%f%f%f%f%s', 'Delimiter', ',', 'HeaderLines', 0);
+fclose(fileID);
+
+% Extract data matrix A and target vector target
+A = [data{1}, data{2}, data{3}, data{4}]'; % Features are in the first 4 columns
+target = categorical(data{5}); % Class labels are in the 5th column
+
+% Implement feature reduction
+function E = feature_reduction(A)
+    d = size(A, 2);
+    R = 2 * randi([0, 1], d, 2) - 1;
+    E = (1 / sqrt(2)) * (A * R);
+end
+
+% Split the data into training and testing sets
+cv = cvpartition(target, 'HoldOut', 0.2);
+idx_train = training(cv);
+idx_test = test(cv);
+
+X_train = A(:, idx_train);
+y_train = target(idx_train);
+
+X_test = A(:, idx_test);
+y_test = target(idx_test);
+
+% Implement multiclass SVM with different kernels
+kernels = {'linear', 2, 3, 4};
+
+for i = 1:length(kernels)
+    kernel = kernels{i};
+    
+    if strcmp(kernel, 'linear')
+        degree = 1;
+    else
+        % Skip polynomial kernels for now
+        continue;
+    end
+    
+    % Train SVM classifier
+    classifier = fitcecoc(X_train', y_train, 'Learners', templateSVM('KernelFunction', kernel, 'PolynomialOrder', degree));
+    
+    % Predict on test set
+    y_pred = predict(classifier, X_test');
+    
+    % Calculate performance metrics
+    cm = confusionmat(y_test, y_pred);
+    acc = sum(diag(cm)) / sum(cm(:));
+    precision = diag(cm) ./ sum(cm, 2);
+    recall = diag(cm) ./ sum(cm, 1)';
+    
+    % Print results
+    fprintf('Kernel: %d\n', degree);
+    fprintf('Confusion Matrix:\n');
+    disp(cm);
+    fprintf('Accuracy: %.4f\n', acc);
+    fprintf('Precision:\n');
+    disp(precision);
+    fprintf('Recall:\n');
+    disp(recall);
+    fprintf('\n');
+end
